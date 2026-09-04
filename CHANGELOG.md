@@ -15,6 +15,76 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.8] - 2026-09-04
+
+### E26 – Monitoring et alertes
+
+- **`GET /api/health`** (`backend/server.js`) : sonde de santé pour les
+  outils de supervision (Uptime Kuma, load balancer, Docker
+  HEALTHCHECK...). Renvoie `200 { status: "ok", database: "connected",
+  uptime, timestamp }` si l'API répond et que MongoDB est connecté, `503
+  { status: "degraded" }` sinon (vérifié via `mongoose.connection.readyState`).
+- **`GET /metrics`** (`backend/config/metrics.js`, dépendance
+  `prom-client`) : expose les métriques par défaut de Node.js (mémoire,
+  event loop, GC) et deux métriques HTTP personnalisées —
+  `http_requests_total` (compteur, par méthode/route/code de statut) et
+  `http_request_duration_seconds` (histogramme de latence) — via un
+  middleware Express appliqué à toutes les routes. La route est prise
+  sur `req.route.path` plutôt que l'URL brute, pour éviter d'exploser la
+  cardinalité des métriques avec un label par ID de tâche.
+- **`HEALTHCHECK` Docker** (`backend/Dockerfile`) : interroge
+  `/api/health` toutes les 30s ; permet à Docker (et à un orchestrateur)
+  de distinguer un conteneur "démarré" d'un conteneur réellement
+  opérationnel.
+- **`monitoring/prometheus.yml` et `monitoring/alert.rules.yml`** :
+  configuration Prometheus prête à l'emploi (scrape de `/metrics`) et 3
+  règles d'alerte concrètes, correspondant aux exemples du README :
+  - `APIDown` : `up{job="backend"} == 0` pendant 1 minute.
+  - `HighLatency` : 95e percentile de la durée des requêtes > 500 ms
+    pendant 5 minutes.
+  - `HighErrorRate` : plus de 5% de réponses 5xx pendant 5 minutes.
+  Ces fichiers ne sont pas branchés en continu au `docker-compose.yml`
+  principal (pas besoin de faire tourner Prometheus en permanence pour
+  développer) ; `monitoring/README.md` documente les outils proposés
+  (Prometheus, Alertmanager, Grafana, Uptime Kuma) et comment tester la
+  configuration ponctuellement.
+- **Validé manuellement via Docker** (avec MongoDB réelle) :
+  `/api/health` renvoie `200`/`connected` avec Mongo up, `503`/`degraded`
+  après `docker compose stop mongo` ; `/metrics` expose bien les
+  compteurs/histogrammes attendus après une requête ; `docker inspect`
+  confirme le conteneur backend passé à l'état `healthy`. Stack complète
+  (mongo/backend/frontend) + Prometheus lancés ensemble : cible `backend`
+  scrapée (`up`), les 3 alertes chargées, métriques visibles en utilisant
+  l'appli via le frontend.
+
+### Corrigé
+
+- **Nom de projet Docker Compose non fixé** — `docker-compose.yml` :
+  sans `name:` explicite, Compose dérive le nom des conteneurs/réseau/
+  volumes du nom du dossier local (ex: `exam_practice_app_clean_default`),
+  ce qui varie d'un clone à l'autre et cassait silencieusement la
+  commande `docker run ... --network ...` documentée pour tester
+  Prometheus (repéré en le testant en conditions réelles avec
+  l'utilisateur). **Correction** : `name: exam-practice-app` fixé en tête
+  du fichier, réseau/volume désormais toujours nommés
+  `exam-practice-app_default`/`exam-practice-app_mongo_data` quel que
+  soit le dossier de clonage.
+- **README incomplet pour un testeur externe** — plusieurs étapes
+  nécessaires n'étaient pas documentées littéralement :
+  - `backend/.env` (gitignoré, absent d'un clone frais) n'était jamais
+    mentionné dans la section d'installation locale du backend : `npm
+    start` plante sans lui. Ajout de `cp .env.example .env`.
+  - Aucune commande pour lancer les tests **en local** (seule la
+    pipeline CI était documentée). Ajout d'une section "Tests" avec les
+    commandes `npm test` backend/frontend.
+  - La section monitoring se contentait de renvoyer vers
+    `monitoring/README.md` sans donner de commande à copier-coller.
+    Ajout des `curl` vers `/api/health`/`/metrics`, et de la commande
+    complète pour lancer Prometheus en local et vérifier cibles/alertes.
+  - La section Docker ne donnait aucun moyen de vérifier que le
+    lancement a réussi, ni comment l'arrêter. Ajout d'une vérification
+    (`curl /api/health`) et des commandes `docker compose down`.
+
 ## [0.0.7] - 2026-09-04
 
 ### E25 – Journalisation (Logging)

@@ -3,8 +3,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const logger = require('./config/logger');
+const { register, metricsMiddleware } = require('./config/metrics');
 
 // Connexion à la base de données
 connectDB();
@@ -32,6 +34,43 @@ app.use(
     stream: { write: (message) => logger.http(message.trim()) },
   })
 );
+
+app.use(metricsMiddleware);
+
+/**
+ * GET /api/health
+ * @route   GET api/health
+ * @desc    Vérification de l'état de santé de l'application, pour les
+ *          sondes de liveness/readiness (Docker HEALTHCHECK, Uptime
+ *          Kuma, load balancer, etc.). Renvoie 200 si l'API répond et
+ *          que MongoDB est connecté, 503 sinon.
+ * @access  Public
+ */
+app.get('/api/health', (req, res) => {
+  const isDbConnected = mongoose.connection.readyState === 1; // 1 = connected
+  const status = isDbConnected ? 'ok' : 'degraded';
+
+  res.status(isDbConnected ? 200 : 503).json({
+    status,
+    uptime: process.uptime(),
+    database: isDbConnected ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * GET /metrics
+ * @route   GET metrics
+ * @desc    Expose les métriques applicatives au format Prometheus
+ *          (requêtes HTTP, latence, métriques par défaut de Node.js),
+ *          destinées à être "scrapées" par un serveur Prometheus (voir
+ *          monitoring/prometheus.yml).
+ * @access  Public (à restreindre par IP/réseau en production, cf. README)
+ */
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.send(await register.metrics());
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));

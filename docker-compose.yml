@@ -1,3 +1,9 @@
+# Nom de projet fixé : les noms de conteneurs/réseau/volume générés par
+# Compose dépendent sinon du nom du dossier où le repo est cloné (variable
+# d'une machine à l'autre), ce qui casserait les commandes documentées dans
+# le README (ex: `--network exam-practice-app_default`).
+name: exam-practice-app
+
 services:
   mongo:
     image: mongo:7

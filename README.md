@@ -18,6 +18,10 @@ cd backend
 # Installez les dépendances
 npm install
 
+# Copiez le gabarit de variables d'environnement (fichier absent du repo,
+# à créer à chaque nouveau clone) et personnalisez au moins JWT_SECRET
+cp .env.example .env
+
 # Lancez le serveur (il se connectera à MongoDB)
 # Assurez-vous que votre service MongoDB est démarré
 npm start
@@ -55,15 +59,51 @@ cp .env.example .env
 
 # Construisez les images et démarrez les 3 services (mongo, backend, frontend)
 docker compose up --build
-# Frontend : http://localhost:3000
-# Backend  : http://localhost:5000
+```
+
+Une fois les 3 services démarrés (`mongo`, `backend`, `frontend` doivent
+apparaître avec un état "Started"/"healthy" dans les logs), vérifiez que
+ça fonctionne :
+
+```bash
+# Doit renvoyer {"status":"ok","database":"connected",...}
+curl http://localhost:5000/api/health
+```
+
+Puis ouvrez **http://localhost:3000** dans un navigateur : inscrivez-vous
+(bouton "Inscription" dans le menu), connectez-vous, ajoutez/modifiez/
+supprimez une tâche.
+
+Pour arrêter :
+
+```bash
+docker compose down
+# Ajoutez -v pour supprimer aussi le volume MongoDB (repartir de zéro) :
+docker compose down -v
 ```
 
 Les données MongoDB sont persistées dans un volume Docker nommé
 (`mongo_data`) : elles survivent à un `docker compose down` (mais pas à un
-`docker compose down -v`, qui supprime aussi les volumes).
+`docker compose down -v`).
 
-### d. CI/CD (GitHub Actions)
+### d. Tests
+
+```bash
+# Backend (Jest — tests unitaires sur la validation des mots de passe et des tâches)
+cd backend
+npm install
+npm test
+
+# Frontend (React Testing Library)
+cd frontend
+npm install
+npm test -- --watchAll=false
+```
+
+Ces mêmes commandes sont ce que la pipeline CI/CD (section suivante)
+exécute automatiquement sur GitHub à chaque push.
+
+### e. CI/CD (GitHub Actions)
 
 Le workflow `.github/workflows/ci.yml` s'exécute sur chaque push et
 pull request vers `main` :
@@ -89,6 +129,46 @@ Sans ces secrets, les jobs de test tournent normalement ; seul le job de
 build/push est ignoré (il est mis en `if` sur `main`, mais échouerait
 faute d'identifiants Docker Hub si on tentait de le lancer sans secrets
 configurés).
+
+### f. Monitoring et alertes
+
+Le backend expose deux endpoints de supervision (accessibles une fois la
+stack Docker démarrée à l'étape "c", ou en local avec `npm run dev`) :
+
+```bash
+# Sonde de santé : 200 si l'API + MongoDB répondent, 503 sinon
+curl http://localhost:5000/api/health
+
+# Métriques au format Prometheus (requêtes HTTP, latence, métriques Node.js)
+curl http://localhost:5000/metrics
+```
+
+Pour tester une vraie collecte Prometheus (optionnel — pas nécessaire au
+quotidien, pas lancé par `docker compose up`) avec la stack Docker déjà
+démarrée :
+
+```bash
+docker run --rm -d --name prometheus-demo \
+  --network exam-practice-app_default \
+  -p 9090:9090 \
+  -v "$(pwd)/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml" \
+  -v "$(pwd)/monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml" \
+  prom/prometheus
+```
+
+Puis ouvrez :
+- **http://localhost:9090/targets** → la cible `backend` doit être `up`.
+- **http://localhost:9090/alerts** → les 3 alertes (`APIDown`,
+  `HighLatency`, `HighErrorRate`) doivent apparaître, en vert
+  ("inactive" = tout va bien).
+- **http://localhost:9090/graph**, tapez `http_requests_total` puis
+  "Execute" → affiche les requêtes déjà comptabilisées.
+
+Pour arrêter : `docker stop prometheus-demo`.
+
+Voir [`monitoring/README.md`](monitoring/README.md) pour le détail des
+outils proposés (Prometheus, Alertmanager, Grafana, Uptime Kuma) et des
+3 alertes définies dans `monitoring/alert.rules.yml`.
 
 ---
 

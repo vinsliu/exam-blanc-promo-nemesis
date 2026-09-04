@@ -1,0 +1,47 @@
+groups:
+  - name: exam-practice-app
+    rules:
+      # 1. L'API ne répond plus du tout à Prometheus.
+      - alert: APIDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "L'API backend ne répond plus"
+          description: >-
+            Prometheus n'arrive plus à scraper {{ $labels.instance }}
+            depuis au moins 1 minute.
+
+      # 2. Latence anormalement élevée (95e percentile > 500 ms).
+      - alert: HighLatency
+        expr: >-
+          histogram_quantile(
+            0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="backend"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Latence API élevée"
+          description: >-
+            Le 95e percentile de la durée des requêtes dépasse 500 ms
+            depuis 5 minutes.
+
+      # 3. Plus de 5% des requêtes renvoient une erreur serveur (5xx).
+      - alert: HighErrorRate
+        expr: >-
+          (
+            sum(rate(http_requests_total{job="backend", status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="backend"}[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taux d'erreur élevé"
+          description: >-
+            Plus de 5% des requêtes renvoient une erreur 5xx depuis
+            5 minutes.
