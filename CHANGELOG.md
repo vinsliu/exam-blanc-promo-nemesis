@@ -15,6 +15,53 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.5] - 2026-09-04
+
+### E24 – Conteneurisation
+
+- **Dockerfile backend** (`backend/Dockerfile`) : image `node:20-alpine`,
+  dépendances installées avec `npm ci --omit=dev` (reproductible, sans les
+  devDependencies comme `nodemon`), démarre `node server.js` sur le port
+  5000. `npm` est mis à jour vers la v11 avant `npm ci` : la version de
+  npm embarquée dans l'image de base (10.8.2) est plus stricte sur la
+  cohérence du lock file et faisait échouer l'installation à tort.
+- **Dockerfile frontend** (`frontend/Dockerfile`) : build multi-stage —
+  une étape `node:20-alpine` compile l'app React (`npm run build`), puis
+  l'image finale `nginx:alpine` ne sert que les fichiers statiques
+  générés (pas de Node.js à l'exécution). `frontend/nginx.conf` ajoute un
+  `try_files ... /index.html` pour que les routes React Router (ex:
+  `/tasks`) fonctionnent aussi en accès direct/rechargement, pas
+  seulement en navigation interne.
+- **`REACT_APP_API_URL` configurable au build** — `frontend/src/api.js`
+  utilisait une URL d'API en dur (`http://localhost:5000/api`), ce qui
+  posait justement la question notée en commentaire dans ce fichier
+  ("comment gérer différentes URLs pour le développement, la
+  pré-production et la production ?"). **Correction** : lecture de
+  `process.env.REACT_APP_API_URL` (avec ce fallback en dev), injectée via
+  un `ARG`/`ENV` du Dockerfile au moment du `npm run build` (CRA fige les
+  variables `REACT_APP_*` dans le bundle statique, il n'y a plus de
+  serveur Node ensuite pour les lire).
+- **`docker-compose.yml`** (racine du projet) : orchestre `mongo` (image
+  `mongo:7`, volume nommé `mongo_data` pour persister les données),
+  `backend` (variables d'environnement `MONGO_URI`/`JWT_SECRET`/
+  `CORS_ORIGIN` injectées à l'exécution, `JWT_SECRET` obligatoire — le
+  compose refuse de démarrer si elle n'est pas définie) et `frontend`
+  (build avec `REACT_APP_API_URL` en argument). Exposé sur
+  `localhost:3000` (frontend) et `localhost:5000` (backend).
+- **`.env.example`** (racine) : gabarit des variables lues par
+  `docker-compose.yml`, à copier en `.env` (déjà ignoré par git). Ne pas
+  confondre avec `backend/.env.example`, utilisé pour le lancement sans
+  Docker.
+- **`.dockerignore`** (backend et frontend) : exclut `node_modules`,
+  fichiers `.env`, logs, etc. du contexte de build, pour des images plus
+  légères et pour ne jamais copier de secret dedans par erreur.
+- **Validé manuellement** : `docker compose build` (les deux images
+  compilent), puis `docker compose up` — MongoDB se connecte
+  (`MongoDB Connected...`), le backend répond correctement (401 sur une
+  route protégée sans token), une inscription via `POST
+  /api/auth/register` renvoie bien un token JWT, et le frontend sert le
+  bundle React avec le fallback SPA fonctionnel sur `/tasks`.
+
 ## [0.0.4] - 2026-09-04
 
 Améliorations complémentaires ne correspondant pas à un exercice du

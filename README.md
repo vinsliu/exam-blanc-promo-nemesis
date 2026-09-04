@@ -25,9 +25,7 @@ npm start
 
 # En développement, préférez plutôt :
 npm run dev
-# Utilise nodemon : le serveur redémarre automatiquement à chaque
-# modification d'un fichier backend (sinon vos changements de code ne
-# sont pris en compte qu'après un redémarrage manuel).
+# Utilise nodemon : le serveur redémarre automatiquement à chaque modification d'un fichier backend (sinon vos changements de code ne sont pris en compte qu'après un redémarrage manuel).
 ```
 
 ### b. Frontend
@@ -43,6 +41,27 @@ npm install
 npm start
 # L'application s'ouvrira sur http://localhost:3000
 ```
+
+### c. Avec Docker (recommandé pour la mise en production)
+
+Ce projet fournit un `Dockerfile` pour le backend, un pour le frontend, et
+un `docker-compose.yml` qui orchestre les deux avec une base MongoDB —
+aucune installation locale de Node.js ou MongoDB n'est nécessaire, seul
+Docker (avec Compose) est requis.
+
+```bash
+# Copiez le gabarit de variables d'environnement et personnalisez-le (au minimum JWT_SECRET, avec un secret long et aléatoire)
+cp .env.example .env
+
+# Construisez les images et démarrez les 3 services (mongo, backend, frontend)
+docker compose up --build
+# Frontend : http://localhost:3000
+# Backend  : http://localhost:5000
+```
+
+Les données MongoDB sont persistées dans un volume Docker nommé
+(`mongo_data`) : elles survivent à un `docker compose down` (mais pas à un
+`docker compose down -v`, qui supprime aussi les volumes).
 
 ---
 

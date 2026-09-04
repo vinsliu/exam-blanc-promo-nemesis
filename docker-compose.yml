@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      MONGO_URI: mongodb://mongo:27017/exam_practice_db
+      JWT_SECRET: ${JWT_SECRET:?La variable JWT_SECRET doit être définie (voir .env.example)}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      PORT: 5000
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Résolue par le navigateur de l'utilisateur, pas par les conteneurs
+        # entre eux : doit donc pointer vers l'hôte, pas vers "backend".
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo_data:
