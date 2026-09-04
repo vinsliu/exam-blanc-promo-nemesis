@@ -4,23 +4,65 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// @route   POST api/auth/register
-// @desc    Register a new user
+const USERNAME_MIN_LENGTH = 3;
+const PASSWORD_MIN_LENGTH = 8;
+// Au moins une minuscule, une majuscule, un chiffre et un caractère
+// spécial, pour éviter les mots de passe trop simples (ex: "12345678").
+const PASSWORD_COMPLEXITY_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/;
+
+/**
+ * Valide le couple username/password à l'inscription.
+ *
+ * Le frontend impose déjà des contraintes minimales, mais elles sont
+ * contournables via un appel direct à l'API : cette validation côté
+ * serveur est donc la seule garantie réelle de robustesse des comptes créés.
+ *
+ * @param {*} username
+ * @param {*} password
+ * @returns {string|null} Un message d'erreur, ou `null` si valide.
+ */
+function validateRegistration(username, password) {
+  if (!username || !password) {
+    return 'Veuillez remplir tous les champs';
+  }
+  if (typeof username !== 'string' || username.trim().length < USERNAME_MIN_LENGTH) {
+    return `Le nom d'utilisateur doit contenir au moins ${USERNAME_MIN_LENGTH} caractères`;
+  }
+  if (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH) {
+    return `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères`;
+  }
+  if (!PASSWORD_COMPLEXITY_REGEX.test(password)) {
+    return 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial';
+  }
+  return null;
+}
+
+/**
+ * POST /api/auth/register
+ * @route   POST api/auth/register
+ * @desc    Crée un nouveau compte utilisateur. Le mot de passe est validé
+ *          côté serveur (longueur minimale, complexité) puis hashé avec
+ *          bcrypt avant d'être stocké.
+ * @access  Public
+ */
 router.post('/register', async (req, res) => {
   const { username, password } = req.body;
 
-  // Un mot de passe vide ou un nom d'utilisateur trop court sont acceptés.
-  if (!username || !password) {
-    return res.status(400).json({ msg: 'Please enter all fields' });
+  const validationError = validateRegistration(username, password);
+  if (validationError) {
+    return res.status(400).json({ msg: validationError });
   }
 
+  const trimmedUsername = username.trim();
+
   try {
-    let user = await User.findOne({ username });
+    let user = await User.findOne({ username: trimmedUsername });
     if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ msg: 'Ce nom d\'utilisateur est déjà utilisé' });
     }
 
-    user = new User({ username, password });
+    user = new User({ username: trimmedUsername, password });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
@@ -34,25 +76,31 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
 
-// @route   POST api/auth/login
-// @desc    Authenticate user & get token
+/**
+ * POST /api/auth/login
+ * @route   POST api/auth/login
+ * @desc    Authentifie un utilisateur (username + password) et renvoie un
+ *          token JWT valable 1h. Message d'erreur volontairement générique
+ *          ("Invalid credentials") dans les deux cas d'échec pour ne pas
+ *          révéler si le username existe (anti-énumération).
+ * @access  Public
+ */
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  
+
   try {
-    // Le message d'erreur est trop générique et ne guide pas l'utilisateur.
     let user = await User.findOne({ username });
     if (!user) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      return res.status(400).json({ msg: 'Identifiants invalides' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid credentials' });
+      return res.status(400).json({ msg: 'Identifiants invalides' });
     }
 
     const payload = { user: { id: user.id } };
@@ -63,7 +111,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server Error');
+    res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
 

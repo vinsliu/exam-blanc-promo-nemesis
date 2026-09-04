@@ -10,7 +10,15 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors());
+// Faille corrigée : `cors()` sans options autorise TOUTES les origines, ce
+// qui est trop permissif en production. On restreint désormais aux origines
+// listées dans CORS_ORIGIN (séparées par des virgules), avec un fallback
+// vers le frontend de dev local.
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim());
+
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // Routes
