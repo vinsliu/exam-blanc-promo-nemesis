@@ -15,6 +15,38 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.6] - 2026-09-04
+
+### E24 – CI/CD
+
+- **Tests unitaires backend** — `backend/routes/auth.test.js` et
+  `backend/routes/tasks.test.js` (Jest) : le projet n'avait aucun test.
+  **Ajout** : `validateRegistration` (politique de mot de passe, E28) et
+  `sanitizeTaskInput` (validation des tâches, E28) sont désormais
+  exportées et testées unitairement (14 cas : champs manquants, règles de
+  longueur, complexité du mot de passe, trim, valeurs par défaut), sans
+  base de données donc rapides à exécuter en CI.
+- **Tests frontend** — `frontend/src/components/Alert.test.js` (React
+  Testing Library) : vérifie que le composant ne rend rien sans message,
+  affiche la bonne classe selon la variante, et n'affiche le bouton de
+  fermeture que si `onDismiss` est fourni. Ajout de
+  `frontend/src/setupTests.js` (charge `@testing-library/jest-dom`) et des
+  dépendances de test correspondantes.
+- **Pipeline GitHub Actions** (`.github/workflows/ci.yml`) : sur chaque
+  push/pull request vers `main`, installe les dépendances et lance les
+  tests (backend Jest, frontend React Testing Library + vérification que
+  `npm run build` compile). **Uniquement sur un push sur `main`**, et
+  seulement si les tests passent : build des images Docker
+  backend/frontend et push vers Docker Hub (tags `latest` et SHA du
+  commit), en réutilisant les `Dockerfile` de la v0.0.5. Nécessite les
+  secrets `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` (et la variable
+  optionnelle `REACT_APP_API_URL`) configurés dans les settings GitHub du
+  dépôt — documenté dans le README.
+- **Validé manuellement** : `npm test` passe côté backend (14/14) et
+  frontend (3/3), `docker compose build` reconstruit les deux images sans
+  régression après l'ajout des tests, et le fichier `ci.yml` a été
+  vérifié syntaxiquement valide.
+
 ## [0.0.5] - 2026-09-04
 
 ### E24 – Conteneurisation

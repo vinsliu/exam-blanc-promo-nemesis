@@ -149,3 +149,6 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
+// Export nommé en plus du router par défaut, pour pouvoir tester la
+// logique de validation en isolation (sans monter l'app/la DB).
+module.exports.sanitizeTaskInput = sanitizeTaskInput;

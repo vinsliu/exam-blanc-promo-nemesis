@@ -1,0 +1,90 @@
+name: CI/CD
+
+# Sur chaque push/PR : installe les dépendances et lance les tests.
+# En plus, sur un push sur main : construit les images Docker et les
+# pousse sur Docker Hub (uniquement si les tests sont passés).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-test:
+    name: Backend - install & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Installer les dépendances
+        working-directory: backend
+        run: npm ci
+      - name: Lancer les tests
+        working-directory: backend
+        run: npm test
+
+  frontend-test:
+    name: Frontend - install & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Installer les dépendances
+        working-directory: frontend
+        run: npm ci
+      - name: Lancer les tests
+        working-directory: frontend
+        run: npm test -- --watchAll=false
+      - name: Vérifier que le build de production compile
+        working-directory: frontend
+        run: npm run build
+
+  build-and-push:
+    name: Build & push des images Docker
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    # On ne pousse des images que depuis main (jamais depuis une PR, qui
+    # n'a de toute façon pas accès aux secrets d'un dépôt tiers).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Connexion à Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & push - backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/exam-practice-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/exam-practice-backend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push - frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          build-args: |
+            REACT_APP_API_URL=${{ vars.REACT_APP_API_URL }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/exam-practice-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/exam-practice-frontend:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

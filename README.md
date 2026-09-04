@@ -63,6 +63,33 @@ Les données MongoDB sont persistées dans un volume Docker nommé
 (`mongo_data`) : elles survivent à un `docker compose down` (mais pas à un
 `docker compose down -v`, qui supprime aussi les volumes).
 
+### d. CI/CD (GitHub Actions)
+
+Le workflow `.github/workflows/ci.yml` s'exécute sur chaque push et
+pull request vers `main` :
+
+1. **Backend** : `npm ci` puis `npm test` (tests unitaires Jest sur les
+   fonctions de validation d'`auth.js` et `tasks.js`, sans base de données).
+2. **Frontend** : `npm ci`, `npm test` (React Testing Library) puis
+   `npm run build` (vérifie que le build de production compile).
+3. **Uniquement sur un push sur `main`**, et seulement si les deux étapes
+   précédentes réussissent : build des images Docker (backend et
+   frontend) et push vers Docker Hub, taguées `latest` et avec le SHA du
+   commit.
+
+Pour activer l'étape de push, configurez dans les settings du repo
+GitHub (`Settings > Secrets and variables > Actions`) :
+- **Secrets** : `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` (un [access
+  token](https://hub.docker.com/settings/security) Docker Hub, pas votre
+  mot de passe).
+- **Variable** (optionnelle) : `REACT_APP_API_URL`, l'URL publique de
+  l'API à utiliser pour le build de production du frontend.
+
+Sans ces secrets, les jobs de test tournent normalement ; seul le job de
+build/push est ignoré (il est mis en `if` sur `main`, mais échouerait
+faute d'identifiants Docker Hub si on tentait de le lancer sans secrets
+configurés).
+
 ---
 
 ## 2. Mission pour les Étudiants
