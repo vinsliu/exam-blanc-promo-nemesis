@@ -2,7 +2,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const connectDB = require('./config/db');
+const logger = require('./config/logger');
 
 // Connexion à la base de données
 connectDB();
@@ -21,16 +23,26 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
+// Journal d'accès HTTP (méthode, route, code de statut, temps de réponse)
+// via morgan, redirigé vers le logger applicatif plutôt que vers stdout
+// brut, pour rester cohérent avec les fichiers de logs et le niveau
+// configuré (silencieux en test).
+app.use(
+  morgan('combined', {
+    stream: { write: (message) => logger.http(message.trim()) },
+  })
+);
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tasks', require('./routes/tasks'));
 
 // Ce handler ne catch que les erreurs synchrones. Les erreurs dans les promesses ne sont pas gérées.
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.message, { stack: err.stack });
   res.status(500).send('Something broke!');
 });
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));

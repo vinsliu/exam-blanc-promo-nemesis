@@ -15,6 +15,47 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.7] - 2026-09-04
+
+### E25 – Journalisation (Logging)
+
+- **Remplacement des `console.log`/`console.error` par Winston** —
+  `backend/config/logger.js` : les seuls logs du backend étaient des
+  `console.log`/`console.error` bruts (pas de niveau, pas de timestamp,
+  pas de fichier, tout perdu si le terminal se ferme). **Ajout** d'un
+  logger Winston configuré avec :
+  - niveau configurable via `LOG_LEVEL` (défaut `debug` en dev, `info` en
+    production) ;
+  - sortie console colorisée et lisible en développement ;
+  - deux fichiers dans `backend/logs/` : `error.log` (uniquement les
+    erreurs) et `combined.log` (tous les niveaux, en JSON structuré,
+    facilement ingérable par un outil externe type ELK/Loki si on veut
+    centraliser plus tard) ;
+  - silencieux pendant les tests (`NODE_ENV=test`, positionné
+    automatiquement par Jest) pour ne pas polluer `npm test`.
+  Tous les `console.log`/`console.error` de `server.js`, `config/db.js`,
+  `routes/auth.js` et `routes/tasks.js` ont été remplacés par ce logger
+  (`logger.info`/`logger.error`, avec la stack trace en métadonnée pour
+  les erreurs).
+- **Journal des requêtes HTTP** — `backend/server.js` : aucune trace des
+  requêtes reçues (méthode, route, code de statut, durée). **Ajout** de
+  `morgan` (format `combined`) redirigé vers le logger applicatif
+  (niveau `http`) au lieu d'écrire directement sur `stdout`, pour rester
+  cohérent avec les fichiers de logs et le silence en test.
+- **Limite connue en conteneur** : les fichiers de `backend/logs/`
+  vivent dans le système de fichiers éphémère de l'image Docker — sans
+  volume monté dessus, ils sont perdus à la suppression du conteneur.
+  C'est acceptable ici car `docker compose logs` capture déjà la sortie
+  console (le flux que lirait un orchestrateur en production) ; pour une
+  vraie centralisation, remplacer/compléter les transports fichiers par
+  un envoi vers un service externe (ex: Loki, CloudWatch Logs, Datadog).
+- **Validé manuellement via Docker** (avec MongoDB réel) : démarrage et
+  connexion Mongo visibles en console et dans `combined.log` ; une
+  requête `GET /api/tasks` sans token apparaît dans le log HTTP (`401`) ;
+  une erreur applicative provoquée volontairement (ID de tâche invalide,
+  `CastError` Mongoose) apparaît bien dans `error.log` avec sa stack
+  trace, tout en renvoyant un message générique à l'utilisateur.
+
 ## [0.0.6] - 2026-09-04
 
 ### E24 – CI/CD

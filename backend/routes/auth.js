@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../config/logger');
 
 const USERNAME_MIN_LENGTH = 3;
 const PASSWORD_MIN_LENGTH = 8;
@@ -75,7 +76,7 @@ router.post('/register', async (req, res) => {
       res.json({ token });
     });
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
@@ -110,7 +111,7 @@ router.post('/login', async (req, res) => {
       res.json({ token });
     });
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });

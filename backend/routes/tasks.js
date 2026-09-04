@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Task = require('../models/Task');
+const logger = require('../config/logger');
 
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 2000;
@@ -45,7 +46,7 @@ router.get('/', auth, async (req, res) => {
     const tasks = await Task.find({ user: req.user.id }).sort({ createdAt: -1 });
     res.json(tasks);
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
@@ -76,7 +77,7 @@ router.post('/', auth, async (req, res) => {
     const task = await newTask.save();
     res.json(task);
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
@@ -115,7 +116,7 @@ router.put('/:id', auth, async (req, res) => {
 
     res.json(task);
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
@@ -143,7 +144,7 @@ router.delete('/:id', auth, async (req, res) => {
 
     res.json({ msg: 'Tâche supprimée' });
   } catch (err) {
-    console.error(err.message);
+    logger.error(err.message, { stack: err.stack });
     res.status(500).json({ msg: 'Erreur serveur' });
   }
 });
