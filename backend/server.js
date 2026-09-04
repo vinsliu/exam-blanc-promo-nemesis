@@ -1,5 +1,8 @@
 // Point d'entrée du serveur backend
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -70,6 +73,70 @@ app.get('/api/health', (req, res) => {
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.send(await register.metrics());
+});
+
+/**
+ * Renvoie les `maxLines` dernières lignes d'un fichier de log, ou une
+ * chaîne vide si le fichier n'existe pas encore (rien loggé depuis le
+ * démarrage du conteneur).
+ * @param {string} filePath
+ * @param {number} maxLines
+ * @returns {string}
+ */
+function tailLogFile(filePath, maxLines) {
+  if (!fs.existsSync(filePath)) return '';
+  const lines = fs.readFileSync(filePath, 'utf8').split('\n').filter(Boolean);
+  return lines.slice(-maxLines).join('\n');
+}
+
+/**
+ * Compare deux chaînes en temps constant (évite qu'un attaquant devine le
+ * token caractère par caractère en mesurant le temps de réponse).
+ * @param {string} a
+ * @param {string} b
+ * @returns {boolean}
+ */
+function timingSafeEqualStrings(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+}
+
+/**
+ * GET /api/logs
+ * @route   GET api/logs
+ * @desc    Expose les ~200 dernières lignes des logs applicatifs
+ *          (backend/logs/combined.log, ou error.log via ?level=error),
+ *          pour pouvoir les consulter sans accès au dashboard de
+ *          l'hébergeur (ex: Render). Protégé par un token secret
+ *          (`LOGS_ACCESS_TOKEN`) attendu dans l'en-tête `x-logs-token`
+ *          ou le paramètre `?token=`. Renvoie 403 si la variable
+ *          d'environnement n'est pas configurée (désactivé par défaut),
+ *          401 si le token fourni est invalide.
+ *
+ *          Limite : en conteneur éphémère (ex: offre gratuite Render),
+ *          ces fichiers ne contiennent que les logs depuis le dernier
+ *          redémarrage, pas un historique complet.
+ * @access  Protégé par token
+ */
+app.get('/api/logs', (req, res) => {
+  const expectedToken = process.env.LOGS_ACCESS_TOKEN;
+  if (!expectedToken) {
+    return res
+      .status(403)
+      .json({ msg: 'Consultation des logs désactivée (LOGS_ACCESS_TOKEN non configuré)' });
+  }
+
+  const providedToken = req.header('x-logs-token') || req.query.token || '';
+  if (!timingSafeEqualStrings(expectedToken, String(providedToken))) {
+    return res.status(401).json({ msg: 'Token invalide' });
+  }
+
+  const level = req.query.level === 'error' ? 'error' : 'combined';
+  const logsDir = path.join(__dirname, 'logs');
+  const lines = tailLogFile(path.join(logsDir, `${level}.log`), 200);
+
+  res.type('text/plain').send(lines || '(aucun log pour le moment)');
 });
 
 // Routes

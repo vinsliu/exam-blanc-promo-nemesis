@@ -15,6 +15,30 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.10] - 2026-09-04
+
+### E25 – Consultation des logs sans accès à l'hébergeur
+
+- **`GET /api/logs`** (`backend/server.js`) : les logs (fichiers +
+  console, cf. E25/0.0.7) n'étaient consultables que par quelqu'un ayant
+  accès au dashboard Render — pas pratique pour donner un accès en
+  lecture seule à un tiers (ex: correcteur externe) sans lui créer un
+  compte. **Ajout** d'une route qui renvoie les ~200 dernières lignes de
+  `combined.log` (ou `error.log` via `?level=error`), protégée par un
+  token secret `LOGS_ACCESS_TOKEN` (en-tête `x-logs-token` ou
+  `?token=`), comparé en temps constant (`crypto.timingSafeEqual`) pour
+  éviter une attaque par mesure de timing. Désactivée par défaut : renvoie
+  `403` tant que `LOGS_ACCESS_TOKEN` n'est pas défini, `401` si le token
+  fourni est incorrect.
+- `backend/.env.example` : documentation de la nouvelle variable.
+- **Validé manuellement via Docker** : `403` sans token configuré côté
+  serveur, `401` sans token ou token invalide fourni par le client, `200`
+  avec le bon token et le contenu réel des logs (y compris les requêtes
+  `/api/logs` elles-mêmes, journalisées par morgan).
+- `hosting/README.md` mis à jour : la limite "pas d'accès aux logs sans
+  compte Render" identifiée en 0.0.9 est désormais couverte par cette
+  route, au lieu de rester une simple piste non implémentée.
+
 ## [0.0.9] - 2026-09-04
 
 ### E21, E22, E23 – Hébergement, DNS, Sécurité

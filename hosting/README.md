@@ -101,10 +101,16 @@ gratuit :
   (déjà garanti par `.gitignore`, E28).
 - **Logs** (E25) : en conteneur qui redémarre régulièrement (mise en
   veille), les fichiers locaux `backend/logs/` ne persistent pas d'un
-  redémarrage à l'autre. Render conserve un historique de logs limité
-  dans son dashboard (suffisant pour du débogage ponctuel gratuit) ; pour
-  une conservation plus longue, il faudrait brancher un service de
-  logging externe avec offre gratuite (ex: Better Stack Logs).
+  redémarrage à l'autre, et le dashboard Render n'est consultable que par
+  quelqu'un ayant accès au compte/projet. Pour permettre une consultation
+  sans accès Render (ex: un correcteur externe), une route
+  **`GET /api/logs`** a été ajoutée : renvoie les ~200 dernières lignes de
+  `combined.log`/`error.log` (`?level=error`), protégée par un token
+  secret (`LOGS_ACCESS_TOKEN`, comparé en temps constant) attendu en
+  en-tête `x-logs-token` ou en paramètre `?token=` — désactivée (403) tant
+  que cette variable n'est pas définie. Reste une solution "maison" : pour
+  un historique plus long et une vraie interface de recherche, il
+  faudrait brancher un service de logging externe (ex: Better Stack Logs).
 - **Monitoring** (E26) : `/metrics` reste disponible pour qui veut le
   scraper manuellement (cf. `monitoring/README.md`) ; pour une
   surveillance continue et gratuite sans rien héberger, UptimeRobot sur
