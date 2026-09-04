@@ -16,7 +16,15 @@ import Tasks from "./pages/Tasks";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 
-// Comment pourrait-on gérer les routes protégées qui nécessitent d'être connecté ?
+/**
+ * Composant App.
+ *
+ * Gère l'état d'authentification global (présence d'un token JWT dans le
+ * localStorage) et le routage. La route /tasks est protégée : si
+ * `isAuthenticated` devient `false` (ex: clic sur "Déconnexion"), elle est
+ * immédiatement remplacée par une redirection vers /login au lieu de rester
+ * affichée sans données valides.
+ */
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
     !!localStorage.getItem("token")
@@ -42,10 +50,38 @@ function App() {
         </header>
         <main>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" />} />
-            <Route path="/login" element={<Login onLogin={handleLogin} />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/tasks" element={<Tasks />} />
+            <Route
+              path="/"
+              element={
+                <Navigate to={isAuthenticated ? "/tasks" : "/login"} replace />
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/tasks" replace />
+                ) : (
+                  <Login onLogin={handleLogin} />
+                )
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/tasks" replace />
+                ) : (
+                  <Register />
+                )
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                isAuthenticated ? <Tasks /> : <Navigate to="/login" replace />
+              }
+            />
           </Routes>
         </main>
         <Footer />
