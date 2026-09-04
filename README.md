@@ -170,6 +170,14 @@ Voir [`monitoring/README.md`](monitoring/README.md) pour le détail des
 outils proposés (Prometheus, Alertmanager, Grafana, Uptime Kuma) et des
 3 alertes définies dans `monitoring/alert.rules.yml`.
 
+### g. Hébergement, DNS, Sécurité (E21, E22, E23)
+
+Pas de code pour ce point (pas d'infrastructure cloud réelle provisionnée
+pour ce projet d'entraînement) : voir
+[`hosting/README.md`](hosting/README.md) pour l'architecture cible
+proposée (Scaleway + MongoDB Atlas), le schéma, et la configuration
+domaine/HTTPS envisagée.
+
 ---
 
 ## 2. Mission pour les Étudiants

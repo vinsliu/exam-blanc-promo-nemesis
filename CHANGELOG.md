@@ -15,6 +15,53 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.9] - 2026-09-04
+
+### E21, E22, E23 – Hébergement, DNS, Sécurité
+
+- **`hosting/README.md`** : contrairement aux exercices précédents, ce
+  point ne donne pas lieu à du code (pas d'infrastructure cloud réelle
+  provisionnée pour un projet d'entraînement) — le README précise que
+  c'est un choix délibéré. Document d'architecture cible, sur une base
+  **entièrement gratuite** (aucune carte bancaire requise) :
+  - **Conteneurs** : Render (offre gratuite, Web Services), déployés
+    directement depuis les `Dockerfile` backend/frontend déjà écrits
+    (E24), avec redéploiement automatique à chaque push sur `main` —
+    sans job supplémentaire dans `ci.yml`. Limite assumée et documentée :
+    mise en veille après 15 min d'inactivité (cold start ~30-60s).
+  - **Base de données** : MongoDB Atlas, cluster M0 (gratuit à vie, pas
+    un essai limité dans le temps) ; accès restreint par un utilisateur
+    MongoDB dédié à droits limités plutôt que le compte admin, connexion
+    TLS obligatoire (`mongodb+srv://`).
+  - **Domaine et HTTPS** : sous-domaines `*.onrender.com` fournis par
+    Render, certificat Let's Encrypt généré/renouvelé automatiquement —
+    aucun achat de domaine ni config DNS nécessaire pour rester gratuit.
+    `CORS_ORIGIN` (E28) et `REACT_APP_API_URL` (E24) pointés sur ces URLs.
+  - **Monitoring gratuit** : UptimeRobot (plan gratuit) sur `/api/health`
+    pour l'alerte "API down" par email, sans avoir à héberger un
+    Prometheus 24/7 ; `/metrics` (E26) reste disponible pour un scraping
+    manuel ponctuel.
+  - **Sécurité complémentaire** : restriction d'accès à `/metrics`,
+    gestion des secrets via les variables d'environnement Render,
+    limites de rétention des logs (E25) sur l'offre gratuite, toutes
+    explicitement documentées comme compromis du "gratuit" plutôt que
+    passées sous silence.
+- README principal : nouvelle section "g. Hébergement, DNS, Sécurité"
+  pointant vers ce document.
+- **Déploiement réel effectué** (pas que de la théorie) : backend et
+  frontend déployés sur Render (Web Services, build depuis les
+  `Dockerfile` existants), connectés à un cluster MongoDB Atlas M0.
+  Vérifié de bout en bout : `/api/health` → `200`/`connected`, frontend
+  servi par nginx avec `REACT_APP_API_URL` correctement injecté au build,
+  CORS validé entre les deux services, inscription/connexion/gestion des
+  tâches testées avec succès dans le navigateur. Un incident réel
+  rencontré et corrigé pendant le déploiement : IP de Render non
+  whitelistée sur MongoDB Atlas (Network Access), causant une boucle de
+  crash du backend (`process.exit(1)` sur échec de connexion, cf. E28) —
+  résolu en autorisant `0.0.0.0/0` côté Atlas, compromis déjà anticipé et
+  documenté dans `hosting/README.md`. URLs ajoutées dans une section
+  "Déploiement actuel" du document.
+
 ## [0.0.8] - 2026-09-04
 
 ### E26 – Monitoring et alertes
