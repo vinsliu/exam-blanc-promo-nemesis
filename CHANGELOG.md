@@ -15,6 +15,42 @@ _Rien pour l'instant. Les prochains changements viendront ici, avant
 d'être basculés dans une nouvelle section versionnée au moment de la
 prochaine "livraison" (tag / déploiement)._
 
+## [0.0.4] - 2026-09-04
+
+Améliorations complémentaires ne correspondant pas à un exercice du
+référentiel en particulier (confort d'utilisation, outillage de dev).
+
+### Ajouté
+
+- **Affichage/masquage du mot de passe** —
+  `frontend/src/components/PasswordInput.js` (+ `.css`) : les champs mot
+  de passe (`Login.js`, `Register.js`) n'avaient aucun moyen de vérifier sa
+  saisie avant de valider le formulaire. **Ajout** : un composant
+  `PasswordInput` réutilisable avec un bouton "œil" (icônes lucide-react,
+  cohérentes avec `Alert`) qui bascule le champ entre `type="password"` et
+  `type="text"`.
+- **Rechargement automatique du backend en développement** —
+  `backend/package.json` : le serveur ne se relançait qu'avec `node
+  server.js` (script `npm start`), donc toute modification de code backend
+  n'était prise en compte qu'après un redémarrage manuel — source de
+  confusion ("le fix ne marche pas" alors qu'il suffisait de relancer le
+  serveur). **Ajout** : `nodemon` en devDependency et un script `npm run
+  dev` qui surveille les fichiers du backend et redémarre automatiquement
+  le serveur à chaque changement. `npm start` reste inchangé pour un
+  lancement type production.
+
+### Modifié
+
+- **Séparation des responsabilités front/back** —
+  `frontend/src/pages/Register.js` et `frontend/src/components/TaskForm.js`
+  contenaient une logique de validation (longueur du username, complexité
+  du mot de passe, titre non vide) dupliquée avec les règles déjà
+  appliquées côté backend. **Correction** : cette logique métier a été
+  retirée du frontend, qui se contente désormais d'envoyer la saisie brute
+  à l'API et d'afficher le message d'erreur renvoyé par le backend
+  (`err.response.data.msg`). Le backend reste la seule source de vérité
+  pour les règles de validation.
+
 ## [0.0.3] - 2026-09-04
 
 ### E29 – Génération de la documentation et journal des évolutions

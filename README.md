@@ -22,6 +22,12 @@ npm install
 # Assurez-vous que votre service MongoDB est démarré
 npm start
 # Le serveur tournera sur http://localhost:5000
+
+# En développement, préférez plutôt :
+npm run dev
+# Utilise nodemon : le serveur redémarre automatiquement à chaque
+# modification d'un fichier backend (sinon vos changements de code ne
+# sont pris en compte qu'après un redémarrage manuel).
 ```
 
 ### b. Frontend
