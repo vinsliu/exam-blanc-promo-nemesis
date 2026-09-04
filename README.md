@@ -5,6 +5,8 @@ Bienvenue sur le projet d'entraînement pour l'évaluation "Mise en production e
 
 **Important** : Cette application a été intentionnellement conçue avec des bugs, des failles de sécurité et des mauvaises pratiques. Votre mission est de l'améliorer en suivant les consignes ci dessous et de faire la mise en production.
 
+## Lien GitHub : https://github.com/vinsliu/exam-blanc-promo-nemesis
+
 ## 1. Installation et Lancement
 
 Ce projet utilise Node.js et MongoDB. Assurez-vous qu'ils sont installés sur votre système.
